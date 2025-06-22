@@ -9,19 +9,26 @@ RUN apt-get update && \
       ca-certificates curl psmisc iptables libnl-3-200 libnl-route-3-200 grep sed coreutils && \
     rm -rf /var/lib/apt/lists/*
 
-WORKDIR /tmp
+# Create a non-root user to run the installer
+RUN useradd -m builder
+USER builder
+WORKDIR /home/builder
+
 RUN set -eux; \
-    # grab PIA's Linux download page
+    # 1) grab the PIA Linux page
     html=$(curl -fsSL https://www.privateinternetaccess.com/download/linux-vpn); \
-    # pull out the first pia-linux-X.Y.Z-NNNNN.run URL
+    # 2) extract the installer URL
     installer_url=$(echo "$html" \
       | grep -oE 'https://installers\.privateinternetaccess\.com/download/pia-linux-[0-9]+\.[0-9]+\.[0-9]+-[0-9]{5}\.run' \
       | head -1); \
     echo "Downloading installer: $installer_url"; \
-    # fetch + unpack
+    # 3) fetch + unpack as normal user
     curl -fsSL "$installer_url" -o pia.run; \
     chmod +x pia.run; \
     sh pia.run --target /opt/piavpn --nox11 --unattended
+
+# Switch back to root to copy files
+USER root
 
 #############################################
 # 2) Final: minimal runtime image
